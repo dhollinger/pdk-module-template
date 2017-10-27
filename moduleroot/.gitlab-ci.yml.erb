@@ -1,0 +1,48 @@
+---
+stages:
+ - test
+ - deploy
+cache: bundler
+before_script:
+  - bundle -v
+  - rm Gemfile.lock || true
+  - gem update --system
+  - gem update bundler
+  - gem --version
+  - bundle -v
+  - bundle install <%= @configs['bundler_args'] %>
+
+
+<% @configs['ruby_versions'].each do |ruby_version| %>
+rubocop-<%= ruby_version %>:
+  image: ruby:<%= ruby_version %>
+  script:
+    - bundle exec rake rubocop
+  stage:
+    - test
+
+syntax-<%= ruby_version %>:
+  image: ruby:<%= ruby_version %>
+  script:
+    - bundle exec rake syntax lint
+  stage:
+    - test
+
+metadata-<%= ruby_version %>:
+  image: ruby:<%= ruby_version %>
+  script:
+    - bundle exec rake metadata_lint
+  stage:
+    - test
+<%   @configs['env'].each do |env| %>
+unit-test-<%= env %>:
+  image: ruby:<%= ruby_version %>
+  variables:
+    - <%= env.split(/\s(?=(?:[^"]|"[^"]*")*$)/)[0] %>
+    - <%= env.split(/\s(?=(?:[^"]|"[^"]*")*$)/)[1]%>
+  script:
+    - bundle exec rake $CHECK
+  stage:
+    - test
+<%   end -%>
+<% end -%>
